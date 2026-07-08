@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Pulse — Shares, Mutual Funds &amp; SIPs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0B0E14;
+    --surface:#131826;
+    --surface-2:#1A2032;
+    --border:#232A3D;
+    --text:#E7EAF0;
+    --text-muted:#8892A6;
+    --gain:#2FBF71;
+    --gain-soft:rgba(47,191,113,0.14);
+    --loss:#E5484D;
+    --loss-soft:rgba(229,72,77,0.14);
+    --accent:#E8A33D;
+    --accent-soft:rgba(232,163,61,0.16);
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  button,select,input,textarea{font-family:inherit;color:inherit;}
+  ::selection{background:var(--accent-soft);}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .app{max-width:1280px;margin:0 auto;padding:28px 24px 60px;}
+
+  /* Header */
+  .app-header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    flex-wrap:wrap; gap:16px;
+    border-bottom:1px solid var(--border);
+    padding-bottom:20px; margin-bottom:24px;
+  }
+  .app-header h1{
+    font-family:var(--font-display); font-size:28px; font-weight:700;
+    margin:0 0 4px; letter-spacing:-0.01em;
+  }
+  .app-header h1 .dot{color:var(--accent);}
+  .app-header p{margin:0; color:var(--text-muted); font-size:13.5px;}
+  .header-actions{display:flex; gap:8px;}
+  .btn{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    padding:9px 14px; border-radius:8px; font-size:13px; font-weight:500;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .btn:hover{border-color:var(--accent); background:#1E2438;}
+  .btn.primary{background:var(--accent); color:#1A1200; border-color:var(--accent); font-weight:600;}
+  .btn.primary:hover{background:#f0ad52;}
+  .btn.small{padding:6px 10px; font-size:12px;}
+  .btn.danger:hover{border-color:var(--loss); color:var(--loss);}
+
+  /* Layout */
+  .layout{display:grid; grid-template-columns:320px 1fr; gap:20px; align-items:start;}
+  @media (max-width:880px){ .layout{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:18px;
+  }
+  .panel h2{
+    font-family:var(--font-display); font-size:15px; font-weight:600; margin:0 0 14px;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);
+  }
+
+  /* Add holding form */
+  .field{margin-bottom:10px;}
+  .field label{display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em;}
+  .field input, .field select{
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px;
+    padding:8px 10px; font-size:13.5px;
+  }
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+
+  /* Holdings list */
+  .holdings-list{margin-top:16px; display:flex; flex-direction:column; gap:6px;}
+  .holding-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px; border-radius:9px; border:1px solid transparent;
+    cursor:pointer; background:var(--surface-2);
+  }
+  .holding-row:hover{border-color:var(--border);}
+  .holding-row.active{border-color:var(--accent); background:var(--accent-soft);}
+  .holding-row .name-block .name{font-weight:600; font-size:13.5px;}
+  .holding-row .name-block .type{font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  .holding-row .price-block{text-align:right; font-family:var(--font-mono);}
+  .holding-row .price{font-size:13.5px; font-weight:600;}
+  .holding-row .chg{font-size:11px;}
+  .chg.gain{color:var(--gain);} .chg.loss{color:var(--loss);} .chg.flat{color:var(--text-muted);}
+  .empty-note{color:var(--text-muted); font-size:12.5px; text-align:center; padding:20px 8px;}
+
+  /* Detail panel */
+  .detail-empty{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:360px; color:var(--text-muted); text-align:center; gap:8px;
+  }
+  .detail-empty .big{font-family:var(--font-display); font-size:20px; color:var(--text);}
+  .detail-header{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px;}
+  .detail-header .title{font-family:var(--font-display); font-size:22px; font-weight:700;}
+  .detail-header .meta{color:var(--text-muted); font-size:12.5px; margin-top:2px;}
+  .detail-actions{display:flex; gap:8px;}
+
+  .paste-box textarea{
+    width:100%; min-height:78px; background:var(--bg); border:1px solid var(--border);
+    border-radius:9px; padding:10px; font-family:var(--font-mono); font-size:12.5px; resize:vertical;
+  }
+  .paste-hint{font-size:11.5px; color:var(--text-muted); margin:6px 0 10px;}
+
+  /* Range gauges */
+  .gauge-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:18px 0;}
+  .gauge-card{background:var(--surface-2); border:1px solid var(--border); border-radius:11px; padding:12px 14px;}
+  .gauge-card .label{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:8px;}
+  .gauge-card .current{font-family:var(--font-mono); font-size:16px; font-weight:600; margin-bottom:8px;}
+  .gauge-track{
+    position:relative; height:8px; border-radius:5px; margin:10px 2px 6px;
+    background:linear-gradient(90deg, var(--loss), var(--accent) 50%, var(--gain));
+    opacity:.55;
+  }
+  .gauge-marker{
+    position:absolute; top:-4px; width:3px; height:16px; background:var(--text);
+    border-radius:2px; transform:translateX(-1.5px);
+  }
+  .gauge-endlabels{display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; color:var(--text-muted);}
+  .gauge-card.nodata{color:var(--text-muted); font-size:12px; display:flex; align-items:center; justify-content:center; min-height:96px;}
+
+  /* Signal card */
+  .signal-card{
+    border-radius:11px; padding:14px 16px; margin-bottom:18px; border:1px solid var(--border);
+  }
+  .signal-card.gain{background:var(--gain-soft); border-color:var(--gain);}
+  .signal-card.loss{background:var(--loss-soft); border-color:var(--loss);}
+  .signal-card.neutral{background:var(--accent-soft); border-color:var(--accent);}
+  .signal-card .signal-label{font-family:var(--font-display); font-size:17px; font-weight:700; margin-bottom:3px;}
+  .signal-card .signal-reason{font-size:12.5px; color:var(--text-muted);}
+  .signal-card .signal-disclaimer{font-size:11px; color:var(--text-muted); margin-top:8px; font-style:italic;}
+
+  /* History table */
+  table.hist{width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:12.5px;}
+  table.hist th{text-align:left; color:var(--text-muted); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase;}
+  table.hist td{padding:6px 8px; border-bottom:1px solid var(--border);}
+  table.hist td.del{text-align:right; cursor:pointer; color:var(--text-muted);}
+  table.hist td.del:hover{color:var(--loss);}
+
+  /* Compare section */
+  .compare-section{margin-top:20px;}
+  .compare-checks{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .check-chip{
+    display:flex; align-items:center; gap:6px; background:var(--surface-2);
+    border:1px solid var(--border); padding:6px 10px; border-radius:20px; font-size:12.5px; cursor:pointer;
+  }
+  .check-chip input{accent-color:var(--accent);}
+  .chart-wrap{background:var(--surface-2); border:1px solid var(--border); border-radius:11px; padding:14px; height:340px;}
+
+  .footer-note{margin-top:28px; text-align:center; color:var(--text-muted); font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="app-header">
+    <div>
+      <h1>Portfolio Pulse<span class="dot">.</span></h1>
+      <p>Your shares, mutual funds and SIPs, in one glance — with ranges, a rule-based signal, and side-by-side charts.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btnImport">Import data</button>
+      <button class="btn" id="btnExport">Export data</button>
+      <input type="file" id="fileImport" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="panel">
+      <h2>Add holding</h2>
+      <div class="field">
+        <label>Name</label>
+        <input id="fName" placeholder="e.g. HDFC Bank / Parag Parikh Flexi Cap">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Type</label>
+          <select id="fType">
+            <option>Share</option>
+            <option>Mutual Fund</option>
+            <option>SIP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Symbol / code</label>
+          <input id="fSymbol" placeholder="optional">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Quantity / units</label>
+          <input id="fQty" type="number" step="any" placeholder="optional">
+        </div>
+        <div class="field">
+          <label>Avg. buy price ₹</label>
+          <input id="fBuy" type="number" step="any" placeholder="optional">
+        </div>
+      </div>
+      <button class="btn primary" id="btnAddHolding" style="width:100%; margin-top:4px;">+ Add holding</button>
+
+      <h2 style="margin-top:22px;">Your holdings</h2>
+      <div class="holdings-list" id="holdingsList">
+        <div class="empty-note">Nothing added yet. Add a share, fund or SIP above to get started.</div>
+      </div>
+    </aside>
+
+    <!-- DETAIL -->
+    <main class="panel" id="detailPanel">
+      <div class="detail-empty" id="emptyState">
+        <div class="big">Select a holding</div>
+        <div>Pick something from the list, then paste its price history to see ranges and a signal.</div>
+      </div>
+
+      <div id="holdingDetail" hidden>
+        <div class="detail-header">
+          <div>
+            <div class="title" id="dName">—</div>
+            <div class="meta" id="dMeta">—</div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn small danger" id="btnDeleteHolding">Delete</button>
+          </div>
+        </div>
+
+        <div class="paste-box">
+          <label style="display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em;">Paste price history</label>
+          <textarea id="pasteArea" placeholder="One entry per line — date, price. Any of these work:&#10;2026-07-08, 1234.50&#10;08-07-2026  1234.50&#10;08/07/2026,1234.50"></textarea>
+          <div class="paste-hint">Accepts YYYY-MM-DD, DD-MM-YYYY or DD/MM/YYYY, comma/space/tab separated. Pasting a date that already exists updates that day's price.</div>
+          <button class="btn primary small" id="btnAddPrices">Add to history</button>
+        </div>
+
+        <h2 style="margin-top:20px;">Range</h2>
+        <div class="gauge-grid" id="gaugeGrid"></div>
+
+        <h2>Signal</h2>
+        <div id="signalArea"></div>
+
+        <h2>Recent entries</h2>
+        <table class="hist">
+          <thead><tr><th>Date</th><th>Price ₹</th><th></th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- COMPARE -->
+  <section class="panel compare-section">
+    <h2>Compare as research</h2>
+    <div class="compare-checks" id="compareChecks">
+      <div class="empty-note">Add at least two holdings with history to compare them.</div>
+    </div>
+    <div class="chart-wrap"><canvas id="compareChart"></canvas></div>
+  </section>
+
+  <div class="footer-note">Data lives only in this browser tab/session — use Export to save a JSON file and Import to bring it back next time. Signals are simple rule-based observations from the prices you enter, not investment advice.</div>
+
+</div>
+
+<script>
+(function(){
+  let holdings = [];          // {id,name,type,symbol,qty,buyPrice,history:[{date,price}]}
+  let selectedId = null;
+  let compareChart = null;
+  const palette = ['#E8A33D','#2FBF71','#5B9CF6','#E5484D','#B47CE5','#3DD6C7','#F2C94C','#F27CA3'];
+
+  const $ = id => document.getElementById(id);
+
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  function parseDate(str){
+    str = str.trim();
+    let m;
+    if(m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)){
+      return new Date(+m[1], +m[2]-1, +m[3]);
+    }
+    if(m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)){
+      return new Date(+m[3], +m[2]-1, +m[1]); // DD-MM-YYYY / DD/MM/YYYY
+    }
+    const d = new Date(str);
+    return isNaN(d) ? null : d;
+  }
+  function fmtDate(d){
+    const dt = (d instanceof Date) ? d : new Date(d);
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
+  function parsePrice(str){
+    const n = parseFloat(str.replace(/[₹,]/g,''));
+    return isNaN(n) ? null : n;
+  }
+
+  function parseHistoryText(text){
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const out = [];
+    lines.forEach(line=>{
+      const parts = line.split(/[,\t]|\s{1,}/).map(p=>p.trim()).filter(Boolean);
+      if(parts.length < 2) return;
+      const d = parseDate(parts[0]);
+      const p = parsePrice(parts[1]);
+      if(d && p!=null) out.push({date: fmtDate(d), price: p});
+    });
+    return out;
+  }
+
+  function mergeHistory(history, incoming){
+    const map = {};
+    history.forEach(h=> map[h.date] = h.price);
+    incoming.forEach(h=> map[h.date] = h.price);
+    return Object.keys(map).sort().map(d=>({date:d, price:map[d]}));
+  }
+
+  function rangeStats(history, days){
+    if(!history.length) return null;
+    const sorted = history; // already sorted ascending
+    const latest = sorted[sorted.length-1];
+    const latestDate = new Date(latest.date);
+    if(days === 0){
+      const prev = sorted.length>1 ? sorted[sorted.length-2] : null;
+      return { low: latest.price, high: latest.price, current: latest.price,
+               changePct: prev ? ((latest.price-prev.price)/prev.price*100) : null, count:1 };
+    }
+    const cutoff = new Date(latestDate); cutoff.setDate(cutoff.getDate()-days);
+    const windowed = sorted.filter(h => new Date(h.date) >= cutoff);
+    if(!windowed.length) return null;
+    const prices = windowed.map(h=>h.price);
+    const first = windowed[0];
+    return {
+      low: Math.min(...prices), high: Math.max(...prices), current: latest.price,
+      changePct: ((latest.price-first.price)/first.price*100), count: windowed.length
+    };
+  }
+
+  function getSignal(holding){
+    const s1y = rangeStats(holding.history, 365);
+    const latest = rangeStats(holding.history, 0);
+    if(!s1y || !latest) return { label:'Not enough data', tone:'neutral', reason:'Add more price history (ideally spanning several months) to generate a signal.' };
+    const {low, high} = s1y;
+    const current = latest.current;
+    const posPct = high>low ? ((current-low)/(high-low)*100) : 50;
+    let label, tone, reason;
+    if(posPct <= 20){
+      label = 'Accumulate'; tone = 'gain';
+      reason = `Trading near the low of its recorded 1-year range (around the ${posPct.toFixed(0)}th percentile).`;
+    } else if(posPct >= 80){
+      label = 'Review / consider trimming'; tone = 'loss';
+      reason = `Trading near the high of its recorded 1-year range (around the ${posPct.toFixed(0)}th percentile).`;
+    } else {
+      label = 'Hold'; tone = 'neutral';
+      reason = `Trading mid-range, around the ${posPct.toFixed(0)}th percentile of its recorded 1-year band.`;
+    }
+    if(holding.buyPrice){
+      const vsBuy = ((current-holding.buyPrice)/holding.buyPrice*100);
+      reason += ` ${vsBuy>=0?'Up':'Down'} ${Math.abs(vsBuy).toFixed(1)}% versus your average buy price.`;
+    }
+    return { label, tone, reason };
+  }
+
+  // ---------- Rendering ----------
+  function renderHoldingsList(){
+    const list = $('holdingsList');
+    if(!holdings.length){
+      list.innerHTML = '<div class="empty-note">Nothing added yet. Add a share, fund or SIP above to get started.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    holdings.forEach(h=>{
+      const today = rangeStats(h.history, 0);
+      const row = document.createElement('div');
+      row.className = 'holding-row' + (h.id===selectedId ? ' active' : '');
+      const chgTone = !today || today.changePct==null ? 'flat' : (today.changePct>0?'gain':today.changePct<0?'loss':'flat');
+      row.innerHTML = `
+        <div class="name-block">
+          <div class="name">${escapeHtml(h.name)}</div>
+          <div class="type">${h.type}</div>
+        </div>
+        <div class="price-block">
+          <div class="price">${today ? '₹'+today.current.toLocaleString('en-IN',{maximumFractionDigits:2}) : '—'}</div>
+          <div class="chg ${chgTone}">${today && today.changePct!=null ? (today.changePct>=0?'+':'')+today.changePct.toFixed(2)+'%' : 'no history'}</div>
+        </div>`;
+      row.addEventListener('click', ()=>{ selectedId = h.id; renderAll(); });
+      list.appendChild(row);
+    });
+  }
+
+  function renderDetail(){
+    const holding = holdings.find(h=>h.id===selectedId);
+    if(!holding){
+      $('emptyState').hidden = false;
+      $('holdingDetail').hidden = true;
+      return;
+    }
+    $('emptyState').hidden = true;
+    $('holdingDetail').hidden = false;
+    $('dName').textContent = holding.name;
+    const metaBits = [holding.type];
+    if(holding.symbol) metaBits.push(holding.symbol);
+    if(holding.qty) metaBits.push(holding.qty+' units/shares');
+    if(holding.buyPrice) metaBits.push('avg buy ₹'+holding.buyPrice);
+    $('dMeta').textContent = metaBits.join(' · ');
+
+    // Gauges
+    const periods = [ ['Today',0], ['Last 5 days',5], ['Last 30 days',30], ['1 year',365], ['5 years',1825] ];
+    const grid = $('gaugeGrid');
+    grid.innerHTML = '';
+    periods.forEach(([label, days])=>{
+      const stats = rangeStats(holding.history, days);
+      const card = document.createElement('div');
+      if(!stats){
+        card.className = 'gauge-card nodata';
+        card.textContent = 'No data yet';
+      } else {
+        card.className = 'gauge-card';
+        const pos = stats.high>stats.low ? ((stats.current-stats.low)/(stats.high-stats.low)*100) : 50;
+        card.innerHTML = `
+          <div class="label">${label}</div>
+          <div class="current">₹${stats.current.toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
+          <div class="gauge-track"><div class="gauge-marker" style="left:${pos}%;"></div></div>
+          <div class="gauge-endlabels"><span>₹${stats.low.toLocaleString('en-IN',{maximumFractionDigits:2})}</span><span>₹${stats.high.toLocaleString('en-IN',{maximumFractionDigits:2})}</span></div>
+        `;
+      }
+      grid.appendChild(card);
+    });
+
+    // Signal
+    const sig = getSignal(holding);
+    $('signalArea').innerHTML = `
+      <div class="signal-card ${sig.tone}">
+        <div class="signal-label">${sig.label}</div>
+        <div class="signal-reason">${sig.reason}</div>
+        <div class="signal-disclaimer">Rule-based observation from the prices you've entered only — not investment advice. Please do your own research or consult a SEBI-registered advisor before acting.</div>
+      </div>`;
+
+    // History table (most recent first, capped)
+    const body = $('histBody');
+    body.innerHTML = '';
+    holding.history.slice().reverse().slice(0,15).forEach(entry=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${entry.date}</td><td>₹${entry.price.toLocaleString('en-IN',{maximumFractionDigits:2})}</td><td class="del">✕</td>`;
+      tr.querySelector('.del').addEventListener('click', ()=>{
+        holding.history = holding.history.filter(e=>e.date!==entry.date);
+        renderAll();
+      });
+      body.appendChild(tr);
+    });
+    if(!holding.history.length){
+      body.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted);">No entries yet — paste some history above.</td></tr>';
+    }
+  }
+
+  function renderCompare(){
+    const withData = holdings.filter(h=>h.history.length>1);
+    const checksWrap = $('compareChecks');
+    if(withData.length < 1){
+      checksWrap.innerHTML = '<div class="empty-note">Add at least two holdings with history to compare them.</div>';
+    } else {
+      checksWrap.innerHTML = '';
+      withData.forEach((h,i)=>{
+        const id = 'cmp_'+h.id;
+        const chip = document.createElement('label');
+        chip.className = 'check-chip';
+        chip.innerHTML = `<input type="checkbox" id="${id}" ${h._compareChecked?'checked':''}> ${escapeHtml(h.name)}`;
+        chip.querySelector('input').addEventListener('change', e=>{
+          h._compareChecked = e.target.checked;
+          drawCompareChart();
+        });
+        checksWrap.appendChild(chip);
+      });
+    }
+    drawCompareChart();
+  }
+
+  function drawCompareChart(){
+    const selected = holdings.filter(h=>h._compareChecked && h.history.length>1);
+    const ctx = $('compareChart').getContext('2d');
+    if(compareChart) compareChart.destroy();
+    if(!selected.length) return;
+
+    const dateSet = new Set();
+    selected.forEach(h=>h.history.forEach(p=>dateSet.add(p.date)));
+    const dates = Array.from(dateSet).sort();
+
+    const datasets = selected.map((h,i)=>{
+      const map = {}; h.history.forEach(p=> map[p.date]=p.price);
+      const base = h.history[0].price;
+      const data = dates.map(d => (map[d]!=null) ? ((map[d]-base)/base*100) : null);
+      return {
+        label: h.name, data,
+        borderColor: palette[i%palette.length],
+        backgroundColor: palette[i%palette.length],
+        spanGaps: true, tension: 0.25, pointRadius: 2, borderWidth: 2
+      };
+    });
+
+    compareChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels: dates, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ labels:{ color:'#E7EAF0', font:{ family:'Inter', size:12 } } },
+          tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y>=0?'+':''}${c.parsed.y.toFixed(2)}%` } }
+        },
+        scales:{
+          x:{ ticks:{ color:'#8892A6', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ color:'#232A3D' } },
+          y:{ ticks:{ color:'#8892A6', callback:v=>v+'%' }, grid:{ color:'#232A3D' } }
+        }
+      }
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderAll(){
+    renderHoldingsList();
+    renderDetail();
+    renderCompare();
+  }
+
+  // ---------- Events ----------
+  $('btnAddHolding').addEventListener('click', ()=>{
+    const name = $('fName').value.trim();
+    if(!name){ $('fName').focus(); return; }
+    const holding = {
+      id: uid(),
+      name,
+      type: $('fType').value,
+      symbol: $('fSymbol').value.trim(),
+      qty: $('fQty').value ? parseFloat($('fQty').value) : null,
+      buyPrice: $('fBuy').value ? parseFloat($('fBuy').value) : null,
+      history: [],
+      _compareChecked: false
+    };
+    holdings.push(holding);
+    selectedId = holding.id;
+    ['fName','fSymbol','fQty','fBuy'].forEach(id=>$(id).value='');
+    renderAll();
+  });
+
+  $('btnAddPrices').addEventListener('click', ()=>{
+    const holding = holdings.find(h=>h.id===selectedId);
+    if(!holding) return;
+    const incoming = parseHistoryText($('pasteArea').value);
+    if(!incoming.length){ return; }
+    holding.history = mergeHistory(holding.history, incoming);
+    $('pasteArea').value = '';
+    renderAll();
+  });
+
+  $('btnDeleteHolding').addEventListener('click', ()=>{
+    const holding = holdings.find(h=>h.id===selectedId);
+    if(!holding) return;
+    if(!confirm(`Delete "${holding.name}"? This can't be undone.`)) return;
+    holdings = holdings.filter(h=>h.id!==selectedId);
+    selectedId = null;
+    renderAll();
+  });
+
+  $('btnExport').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(holdings, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'portfolio-pulse-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  $('btnImport').addEventListener('click', ()=> $('fileImport').click());
+  $('fileImport').addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try{
+        const data = JSON.parse(evt.target.result);
+        if(Array.isArray(data)){
+          holdings = data.map(h => ({ ...h, id: h.id || uid(), history: h.history || [], _compareChecked:false }));
+          selectedId = holdings[0]?.id || null;
+          renderAll();
+        }
+      }catch(err){ alert('Could not read that file — please make sure it\\'s a Portfolio Pulse export.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
