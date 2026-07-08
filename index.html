@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ops Task Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12151b;
+    --panel: #1a1f27;
+    --panel-2: #212733;
+    --border: #2a3140;
+    --text: #e9ecf1;
+    --text-dim: #8d96a5;
+    --teal: #3ecf8e;
+    --amber: #f2b84b;
+    --coral: #ff6b6b;
+    --violet: #9b8cff;
+    --sky: #5ec8ef;
+    --gold: #e0b84a;
+  }
+  body[data-theme="light"]{
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel-2: #eef0f3;
+    --border: #dbdfe6;
+    --text: #1b1f27;
+    --text-dim: #6b7280;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    transition:background .15s, color .15s;
+  }
+  .topbar{
+    position:relative;
+    padding:22px 24px 18px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    overflow:hidden;
+  }
+  .radar-mark{
+    width:34px; height:34px; border-radius:50%;
+    position:relative;
+    background:radial-gradient(circle at center, rgba(62,207,142,0.15), transparent 70%);
+    border:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .radar-mark::before{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:50%;
+    background:conic-gradient(from 0deg, var(--teal) 0deg, transparent 60deg, transparent 360deg);
+    animation:sweep 3s linear infinite;
+    opacity:0.85;
+  }
+  .radar-mark::after{
+    content:"";
+    position:absolute; inset:10px;
+    border-radius:50%;
+    background:var(--bg);
+  }
+  @keyframes sweep{ to{ transform:rotate(360deg); } }
+  .title-block{display:flex; align-items:center; gap:12px;}
+  h1{
+    font-size:18px; margin:0; font-weight:600; letter-spacing:0.2px;
+  }
+  .subtitle{color:var(--text-dim); font-size:12.5px; margin-top:2px;}
+  .controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  input, textarea, select{
+    font-family:inherit;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:7px;
+    padding:8px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  input:focus, textarea:focus, select:focus{ border-color:var(--teal); }
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border-radius:7px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:8px 12px;
+    font-size:13px;
+    transition:background .15s, border-color .15s;
+  }
+  button:hover{ border-color:var(--teal); }
+  .btn-primary{ background:var(--teal); color:#0b1310; border-color:var(--teal); font-weight:600; }
+  .btn-primary:hover{ filter:brightness(1.05); }
+  .search-input{ width:220px; }
+  #board{
+    display:flex;
+    gap:16px;
+    padding:20px 24px;
+    overflow-x:auto;
+    align-items:flex-start;
+  }
+  .column{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    width:290px;
+    flex:0 0 290px;
+    display:flex;
+    flex-direction:column;
+    max-height:calc(100vh - 110px);
+  }
+  .col-head{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--border);
+    border-top:3px solid var(--accent, var(--teal));
+    border-radius:12px 12px 0 0;
+  }
+  .col-head-top{ display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .col-name{ font-weight:600; font-size:14px; }
+  .col-remove{
+    background:transparent; border:none; color:var(--text-dim); font-size:15px; padding:2px 4px;
+  }
+  .col-remove:hover{ color:var(--coral); border:none; }
+  .col-stats{ color:var(--text-dim); font-size:11.5px; margin-top:4px; font-family:'IBM Plex Mono', monospace; }
+  .progress{
+    height:4px; background:var(--panel-2); border-radius:2px; margin-top:8px; overflow:hidden;
+  }
+  .progress-fill{ height:100%; background:var(--accent, var(--teal)); border-radius:2px; }
+  .cards{
+    padding:10px 10px 4px;
+    overflow-y:auto;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .card{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:10px 10px 8px;
+    font-size:13px;
+  }
+  .card.done{ opacity:0.55; }
+  .card.hidden{ display:none; }
+  .card{ cursor:grab; }
+  .card:active{ cursor:grabbing; }
+  .cards.drag-over{
+    background:rgba(62,207,142,0.06);
+    outline:2px dashed var(--accent, var(--teal));
+    outline-offset:-4px;
+    border-radius:8px;
+  }
+  .card-top{ display:flex; align-items:flex-start; gap:8px; }
+  .card-check{ margin-top:2px; accent-color:var(--teal); cursor:pointer; flex-shrink:0; }
+  .card-text{
+    flex:1; line-height:1.4; word-break:break-word; cursor:text;
+  }
+  .card-text.done-text{ text-decoration:line-through; color:var(--text-dim); }
+  .card-actions{ display:flex; gap:4px; flex-shrink:0; }
+  .icon-btn{
+    background:transparent; border:none; padding:2px 4px; font-size:12px; color:var(--text-dim);
+  }
+  .icon-btn:hover{ color:var(--sky); border:none; }
+  .icon-btn.del:hover{ color:var(--coral); }
+  .tat-row{ display:flex; align-items:center; gap:6px; margin-top:7px; }
+  .tat-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    padding:2px 7px;
+    border-radius:20px;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    cursor:text;
+  }
+  .tat-badge.done{ color:var(--teal); border-color:rgba(62,207,142,0.4); }
+  .tat-badge.blocked{ color:var(--coral); border-color:rgba(255,107,107,0.4); position:relative; }
+  .tat-badge.pending{ color:var(--amber); border-color:rgba(242,184,75,0.4); }
+  .blip{
+    width:6px; height:6px; border-radius:50%; background:var(--coral); flex-shrink:0;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+  .edit-field{
+    width:100%; resize:vertical; min-height:44px; font-size:13px; margin-bottom:6px;
+  }
+  .edit-tat{ width:120px; font-size:12px; }
+  .edit-row{ display:flex; gap:6px; align-items:center; }
+  .add-form{
+    padding:10px; border-top:1px solid var(--border);
+  }
+  .add-form input{ width:100%; margin-bottom:6px; }
+  .add-form-row{ display:flex; gap:6px; }
+  .add-form-row input:first-child{ flex:1.3; }
+  .add-form-row input:last-child{ flex:1; }
+  .add-form button{ width:100%; margin-top:6px; }
+  .new-col{
+    flex:0 0 220px;
+    border:1px dashed var(--border);
+    border-radius:12px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:16px;
+  }
+  .new-col-form{ width:100%; display:flex; flex-direction:column; gap:8px; }
+  .empty-msg{ color:var(--text-dim); font-size:12px; text-align:center; padding:14px 4px; }
+  ::-webkit-scrollbar{ height:8px; width:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
+  @media (max-width:640px){
+    .topbar{ flex-direction:column; align-items:flex-start; }
+    .search-input{ width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title-block">
+    <div class="radar-mark"></div>
+    <div>
+      <h1>Ops Task Dashboard</h1>
+      <div class="subtitle" id="statusLine">Loading…</div>
+    </div>
+  </div>
+  <div class="controls">
+    <input class="search-input" id="searchInput" placeholder="Search tasks…" oninput="renderBoard()">
+    <button id="themeToggle" onclick="toggleTheme()">☀️ Light</button>
+    <button class="btn-primary" onclick="toggleNewColumn(true)">+ Add person / project</button>
+  </div>
+</div>
+
+<div id="board"></div>
+
+<script>
+const STORAGE_KEY = 'ops-dashboard-v1';
+const THEME_KEY = 'ops-dashboard-theme-v1';
+const COLORS = ['--teal','--amber','--violet','--sky','--gold','--coral'];
+let state = null;
+let showNewCol = false;
+let theme = 'dark';
+
+async function loadTheme(){
+  try{
+    const r = await window.storage.get(THEME_KEY);
+    theme = r ? r.value : 'dark';
+  }catch(e){
+    theme = 'dark';
+  }
+  applyTheme();
+}
+
+function applyTheme(){
+  document.body.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if(btn) btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+}
+
+async function toggleTheme(){
+  theme = theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  try{ await window.storage.set(THEME_KEY, theme); }catch(e){ console.error('Theme save failed', e); }
+}
+
+function uid(){ return 't' + Date.now() + Math.random().toString(16).slice(2); }
+
+function seedState(){
+  const persons = ['Amit','Keshav','Panda','Bhuvan','HARI','MCL Radar Project'];
+  const raw = [
+    ['Amit','Shiv - Tower Bill Eway Vehicle No','Done - 29 June 26 / Vei No - ??'],
+    ['Amit','Harcharan - Bill','Done - 29 June 26'],
+    ['Amit','OfC Bill 2 Sharda','Done - 30 Jun 26'],
+    ['Amit','Akshay - MCL Invoice','Done - 29 June 26'],
+    ['Amit','Harcharan Eway Bill','Done'],
+    ['Amit','Harcharan Truck No','Done'],
+    ['Amit','OfC Bill 1 Selponic','Done'],
+    ['Amit','Excel Tracking File','Done - 3 July 26'],
+    ['Amit','C2C Tracking File','Done - 3 July 26'],
+    ['Amit','Sling - PO','Tomorrow 1 July 26'],
+    ['Amit','CRC - Request Letter','Discussed - ??'],
+    ['Amit','MCL - Local Items - Draft/Approve','Tomorrow 1 July 26'],
+    ['Amit','MI Visit Tuesday / Friday',''],
+    ['Amit','Excel Tracking File (2)',''],
+    ['Amit','C2C Tracking File (2)',''],
+
+    ['Keshav','SOI - AMC Bill - Receipts of GOA','Done - 30 Jun 26'],
+    ['Keshav','UJVNL - Alok, Pinnakal and UTNT - AMC RFQ','Done - 30 Jun 26'],
+    ['Keshav','SOI - AMC Bill - Receipts of Karnataka','30-Jun-26'],
+    ['Keshav','SOI - AMC Bill - Receipts of Gujrat','30-Jun-26'],
+    ['Keshav','SOI BB - File Update for contact details','30-Jun-26'],
+    ['Keshav','Neepco - Pina - 2 Seismic Repair Quote','30-Jun-26'],
+    ['Keshav','Neepco - Pina - Console Cable Quote','30-Jun-26'],
+    ['Keshav','Gujrat DAM - Alok - Quote of Sensors',''],
+    ['Keshav','Neepco - Alok - Calibration Cert.','30-Jun-26'],
+    ['Keshav','Neepco - ETS / GNNS - Calibration Cert.','3-Jul-26'],
+    ['Keshav','SOI - FTP - issue on exe / VS code works',''],
+    ['Keshav','SOI - PING as a service',''],
+    ['Keshav','Tata Steel - LPC - Vishnu',''],
+    ['Keshav','Tour - Exp. Filed','??'],
+    ['Keshav','Neepco - Dyong - Discuss with Oren',''],
+    ['Keshav','Utilities Bills submission and report',''],
+    ['Keshav','Danishka Bills',''],
+    ['Keshav','Neepco Bills',''],
+    ['Keshav','Mail to Rohit',''],
+    ['Keshav','UJVNL - Pinnakal - AMC Quote Received',''],
+    ['Keshav','NEEPCO - 6 Month AMC Proposal - AMC',''],
+
+    ['Panda','OfC Bill 2 Sharda','Done - 30 Jun 26'],
+    ['Panda','OfC Bill 1 Selponic','30-Jun-26'],
+    ['Panda','Sling - PO','Tomorrow 1 July 26'],
+    ['Panda','Sling - Payment from CC','Tomorrow 1 July 26'],
+    ['Panda','Plan - Sheet - Update',''],
+    ['Panda','WB - Keys','Monday 6 July'],
+    ['Panda','WB - Log register',''],
+    ['Panda','Tour - Exp. Filed','??'],
+    ['Panda','Maharashtra Letter for Concerns Sites',''],
+    ['Panda','WPC SECFA File process',''],
+    ['Panda','Radar / Drive - Area / Reached','Gaurav ??'],
+
+    ['Bhuvan','Trolly Dispatch at Mayapuri','Done'],
+    ['Bhuvan','Theft Cases',''],
+    ['Bhuvan','Karnataka - CORS Down cases',''],
+
+    ['HARI','Panda WB - Keys','6-Jul-26'],
+    ['HARI','Maharashtra - location / Low area',''],
+    ['HARI','Jharkhand - Shortfall 21 May 26',''],
+
+    ['MCL Radar Project','Material Delivery','6-Jul-26'],
+    ['MCL Radar Project','Vishnu - Advance',''],
+    ['MCL Radar Project','Jharkhand - Shortfall 21 May 26',''],
+    ['MCL Radar Project','Naman - AI Agent',''],
+    ['MCL Radar Project','Check Subscription of ChatGPT',''],
+    ['MCL Radar Project','Check Subscription of Claude','']
+  ];
+  const tasks = raw.map(([person, text, tat]) => ({
+    id: uid(), person, text, tat,
+    done: /done/i.test(tat)
+  }));
+  return { persons, tasks };
+}
+
+async function loadState(){
+  try{
+    const r = await window.storage.get(STORAGE_KEY);
+    state = r ? JSON.parse(r.value) : seedState();
+    if(!r) await saveState();
+  }catch(e){
+    state = seedState();
+    await saveState();
+  }
+  renderBoard();
+}
+
+async function saveState(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){ console.error('Save failed', e); }
+  updateStatusLine();
+}
+
+function updateStatusLine(){
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t=>t.done).length;
+  document.getElementById('statusLine').textContent =
+    `${state.persons.length} lists · ${done}/${total} tasks done · saved`;
+}
+
+function colorFor(personIndex){
+  return COLORS[personIndex % COLORS.length];
+}
+
+function tatClass(task){
+  if(task.done) return 'done';
+  if(/\?\?/.test(task.tat)) return 'blocked';
+  if(task.tat) return 'pending';
+  return 'pending';
+}
+
+function toggleNewColumn(v){
+  showNewCol = v;
+  renderBoard();
+  if(v){ setTimeout(()=>{ const el=document.getElementById('newColInput'); if(el) el.focus(); },0); }
+}
+
+function addPerson(){
+  const input = document.getElementById('newColInput');
+  const name = input.value.trim();
+  if(!name) return;
+  if(state.persons.includes(name)){ alert('That list already exists.'); return; }
+  state.persons.push(name);
+  showNewCol = false;
+  saveState();
+  renderBoard();
+}
+
+function removePerson(person){
+  const hasTasks = state.tasks.some(t=>t.person===person);
+  if(hasTasks && !confirm(`Remove "${person}" and all its tasks?`)) return;
+  state.persons = state.persons.filter(p=>p!==person);
+  state.tasks = state.tasks.filter(t=>t.person!==person);
+  saveState();
+  renderBoard();
+}
+
+function addTask(person){
+  const textInput = document.getElementById('add-text-'+cssId(person));
+  const tatInput = document.getElementById('add-tat-'+cssId(person));
+  const text = textInput.value.trim();
+  if(!text) return;
+  state.tasks.push({ id: uid(), person, text, tat: tatInput.value.trim(), done:false });
+  textInput.value=''; tatInput.value='';
+  saveState();
+  renderBoard();
+}
+
+function toggleDone(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.done = !t.done; saveState(); renderBoard(); }
+}
+
+function deleteTask(id){
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+  saveState();
+  renderBoard();
+}
+
+function startEdit(id){
+  const card = document.querySelector(`[data-card-id="${id}"]`);
+  if(card) card.classList.add('editing');
+  renderBoard(id);
+}
+
+function saveEdit(id){
+  const t = state.tasks.find(t=>t.id===id);
+  const textEl = document.getElementById('edit-text-'+id);
+  const tatEl = document.getElementById('edit-tat-'+id);
+  if(t && textEl){
+    t.text = textEl.value.trim() || t.text;
+    t.tat = tatEl.value.trim();
+    t.done = /done/i.test(t.tat) ? t.done || false : t.done;
+  }
+  editingId = null;
+  saveState();
+  renderBoard();
+}
+
+function cancelEdit(){
+  editingId = null;
+  renderBoard();
+}
+
+function cssId(str){ return str.replace(/[^a-z0-9]/gi,'_'); }
+
+function onDragStart(e, id){
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e, person){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  const t = state.tasks.find(t=>t.id===id);
+  if(t && t.person !== person){
+    t.person = person;
+    saveState();
+    renderBoard();
+  }
+}
+
+let editingId = null;
+
+function renderBoard(forceEditId){
+  if(forceEditId !== undefined && typeof forceEditId === 'string'){ editingId = forceEditId; }
+  const board = document.getElementById('board');
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  board.innerHTML = '';
+
+  state.persons.forEach((person, idx) => {
+    const accent = colorFor(idx);
+    const col = document.createElement('div');
+    col.className = 'column';
+    col.style.setProperty('--accent', `var(${accent})`);
+
+    const tasks = state.tasks.filter(t=>t.person===person);
+    const doneCount = tasks.filter(t=>t.done).length;
+    const pct = tasks.length ? Math.round((doneCount/tasks.length)*100) : 0;
+
+    col.innerHTML = `
+      <div class="col-head">
+        <div class="col-head-top">
+          <div class="col-name">${escapeHtml(person)}</div>
+          <button class="col-remove" onclick="removePerson('${escapeAttr(person)}')" title="Remove list">✕</button>
+        </div>
+        <div class="col-stats">${doneCount}/${tasks.length} done</div>
+        <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="cards" id="cards-${cssId(person)}"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event,'${escapeAttr(person)}')"></div>
+      <div class="add-form">
+        <div class="add-form-row">
+          <input type="text" id="add-text-${cssId(person)}" placeholder="New task…" onkeydown="if(event.key==='Enter'){document.getElementById('add-tat-${cssId(person)}').focus()}">
+          <input type="text" id="add-tat-${cssId(person)}" placeholder="TAT / date" onkeydown="if(event.key==='Enter'){addTask('${escapeAttr(person)}')}">
+        </div>
+        <button onclick="addTask('${escapeAttr(person)}')">+ Add task</button>
+      </div>
+    `;
+    board.appendChild(col);
+
+    const cardsEl = col.querySelector(`#cards-${cssId(person)}`);
+    if(tasks.length===0){
+      cardsEl.innerHTML = `<div class="empty-msg">No tasks yet.</div>`;
+    }
+    tasks.forEach(t => {
+      const matches = !query || t.text.toLowerCase().includes(query) || t.tat.toLowerCase().includes(query);
+      const card = document.createElement('div');
+      card.className = 'card' + (t.done ? ' done' : '') + (matches ? '' : ' hidden');
+      card.setAttribute('data-card-id', t.id);
+      if(editingId !== t.id){
+        card.setAttribute('draggable', 'true');
+        card.addEventListener('dragstart', (e)=>onDragStart(e, t.id));
+      }
+
+      if(editingId === t.id){
+        card.innerHTML = `
+          <textarea class="edit-field" id="edit-text-${t.id}">${escapeHtml(t.text)}</textarea>
+          <div class="edit-row">
+            <input class="edit-tat" id="edit-tat-${t.id}" value="${escapeAttr(t.tat)}" placeholder="TAT / date">
+            <button class="btn-primary" onclick="saveEdit('${t.id}')">Save</button>
+            <button onclick="cancelEdit()">Cancel</button>
+          </div>
+        `;
+      } else {
+        const tc = tatClass(t);
+        card.innerHTML = `
+          <div class="card-top">
+            <input type="checkbox" class="card-check" ${t.done?'checked':''} onchange="toggleDone('${t.id}')">
+            <div class="card-text ${t.done?'done-text':''}" ondblclick="startEdit('${t.id}')">${escapeHtml(t.text)}</div>
+            <div class="card-actions">
+              <button class="icon-btn" onclick="startEdit('${t.id}')" title="Edit">✎</button>
+              <button class="icon-btn del" onclick="deleteTask('${t.id}')" title="Delete">🗑</button>
+            </div>
+          </div>
+          <div class="tat-row">
+            ${tc==='blocked' ? '<span class="blip"></span>' : ''}
+            <span class="tat-badge ${tc}" ondblclick="startEdit('${t.id}')">${escapeHtml(t.tat || 'no date')}</span>
+          </div>
+        `;
+      }
+      cardsEl.appendChild(card);
+    });
+  });
+
+  if(showNewCol){
+    const nc = document.createElement('div');
+    nc.className = 'new-col';
+    nc.innerHTML = `
+      <div class="new-col-form">
+        <input type="text" id="newColInput" placeholder="Person or project name" onkeydown="if(event.key==='Enter'){addPerson()}">
+        <button class="btn-primary" onclick="addPerson()">Create list</button>
+        <button onclick="toggleNewColumn(false)">Cancel</button>
+      </div>
+    `;
+    board.appendChild(nc);
+  }
+
+  updateStatusLine();
+}
+
+function escapeHtml(str){
+  return (str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+loadTheme();
+loadState();
+</script>
+</body>
+</html>
